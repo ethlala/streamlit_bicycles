@@ -51,7 +51,7 @@ if section == 'Data Explorer':
                                 df.select_dtypes(include = np.object).columns.tolist())
     y_axis = 'count'
 
-    chart_type = st.sidebar.selectbox("Choose a chart Type", ['histogram','line', 'bar', 'area'])
+    chart_type = st.sidebar.selectbox("Choose a chart Type", ['histogram','line', 'bar', 'area', 'trend'])
 
     #do a timeline chart 
     if chart_type == 'histogram':
@@ -66,6 +66,11 @@ if section == 'Data Explorer':
         st.bar_chart(grouping)
     elif chart_type == 'area':
         fig = px.strip(df[[x_axis, y_axis]], x = x_axis, y = y_axis)
+        st.plotly_chart(fig)
+    elif chart_type == 'trend':
+        data = df.groupby(['year','month'])['count'].sum().reset_index()
+        fig = px.line(data, x='month', y='count', facet_row = 'year', title='Monthly Rides Over Time')
+        #fig = px.strip(df[[x_axis, y_axis]], x = x_axis, y = y_axis)
         st.plotly_chart(fig)
     st.write(df)
 else:
