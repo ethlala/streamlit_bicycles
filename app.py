@@ -1,7 +1,9 @@
 import streamlit as st
+import category_encoders as ce
 import pandas as pd
 import numpy as np
 import plotly.express as px
+import matplotlib.pyplot as plt
 #streamlit supports most major plotting libraries - cool!
 import pickle
 
@@ -12,7 +14,7 @@ url = r'https://raw.githubusercontent.com/JonathanBechtel/dat-11-15/main/Homewor
 
 num_rows = st.sidebar.number_input('Select # of Rows to Load', 
                                     min_value = 1000, 
-                                    max_value = 10000, 
+                                    max_value = 100000, 
                                     step = 1000)
 
 section = st.sidebar.radio('Choose Application Section', ['Data Explorer', 'Model Explorer'])
@@ -26,18 +28,18 @@ def load_data(num_rows):
     df['year'] = df['datetime'].dt.year
     df['week'] = df['datetime'].dt.isocalendar().week
     df['hour'] = df['datetime'].dt.hour
-    df['yesterday'] = df.groupby(['year', 'month'])['count'].shift()
+    df['yesterday'] = df.groupby('hour')['count'].shift()
     return df
 
 
 #creating another function w/o a ton of logic so we can cache it 
-@st.cache
+#@st.cache
 def create_grouping(x_axis, y_axis):
     grouping = df.groupby(x_axis)[y_axis].mean()
     return grouping
 
 def load_model():
-    with open('pipe.pkl', 'rb') as pickled_mod:
+    with open('simple_pipe.pkl', 'rb') as pickled_mod:
         model = pickle.load(pickled_mod)
     return model
 
@@ -47,12 +49,16 @@ if section == 'Data Explorer':
     #using a pandas method that returns all categorical variables
     x_axis = st.sidebar.selectbox("Choose column for x-axis", 
                                 df.select_dtypes(include = np.object).columns.tolist())
-    y_axis = df['count']
+    y_axis = 'count'
 
-    chart_type = st.sidebar.selectbox("Choose a chart Type", ['line', 'bar', 'area'])
+    chart_type = st.sidebar.selectbox("Choose a chart Type", ['histogram','line', 'bar', 'area'])
 
-    #st.line_chart(grouping)
-    if chart_type == 'line':
+    #do a timeline chart 
+    if chart_type == 'histogram':
+        st.subheader('Number of rides by hour')
+        fig = px.histogram(df, x="hour", y = 'count', nbins=24)
+        st.plotly_chart(fig)
+    elif chart_type == 'line':
         grouping = create_grouping(x_axis, y_axis)
         st.line_chart(grouping)
     elif chart_type == 'bar':
@@ -63,25 +69,35 @@ if section == 'Data Explorer':
         st.plotly_chart(fig)
     st.write(df)
 else:
-    st.text("Choose a section to explore the data")
+    st.text("Let's predict how many rides will happen at a given time tomorrow")
     model = load_model()
 
-    id_val = st.sidebar.selectbox("Choose a restaurant ID", 
-                                df['id'].unique().tolist())
-    yesterday = st.sidebar.number_input("How many rides yesterday?", min_value=0,
+    hour = st.sidebar.selectbox("What time of day?", 
+                                df['hour'].unique().tolist())
+    yesterday = st.sidebar.number_input("How many rides at this time yesterday?", min_value=0,
                                         max_value = 1000, step = 10, value = 190)
-    day_of_week = st.sidebar.selectbox("Day of Week", 
-                                        df['day_of_week'].unique().tolist())
+    atemp = st.sidebar.number_input("How hot will it feel tomorrow?", min_value=0,
+                                        max_value = 45, step = 1, value = 24) 
+    season = st.sidebar.selectbox("What season is it?", 
+                                df['season'].unique().tolist())   
+    workingday_query = st.sidebar.radio("Is it a working day?", 
+                                        ('Yes', 'No'))
+    workingday = 1
+    if workingday_query == "No": 
+        workingday = 0
     sample = {
-    'id': id_val,
     'yesterday': yesterday,
-    'day_of_week': day_of_week
+    'hour': hour,
+    'atemp': atemp,
+    'workingday': workingday,
+    'season': season
     }
 
     sample = pd.DataFrame(sample, index=[0])
+    st.write(sample)
     prediction = model.predict(sample)[0]
 
-    st.title(f"Predicted Attendance: {int(prediction)}")
+    st.title(f"Predicted Rides tomorrow at {hour}:00: {int(prediction)}")
     #surfacing the live prediction!!!
 print(num_rows)
 print(section)
