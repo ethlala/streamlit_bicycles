@@ -3,5 +3,4 @@ category_encoders
 pandas
 numpy
 plotly.express
-matplotlib.pyplot
 pickle
