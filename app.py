@@ -3,7 +3,6 @@ import category_encoders as ce
 import pandas as pd
 import numpy as np
 import plotly.express as px
-import matplotlib.pyplot as plt
 #streamlit supports most major plotting libraries - cool!
 import pickle
 
